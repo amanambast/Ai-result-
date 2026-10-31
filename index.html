@@ -1,0 +1,186 @@
+<!DOCTYPE html><html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Result Generator</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial;background:#f1f5f9;color:#172554}
+header{background:#172554;color:white;padding:18px;text-align:center}
+.container{max-width:1000px;margin:25px auto;padding:15px}
+.card{background:white;padding:22px;border-radius:12px;margin-bottom:20px;box-shadow:0 3px 12px #0001}
+input,button{padding:12px;margin:6px 0;width:100%;border:1px solid #cbd5e1;border-radius:7px}
+button{background:#2563eb;color:white;border:0;font-weight:bold;cursor:pointer}
+button:hover{background:#1d4ed8}
+.hidden{display:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.result{text-align:center;border:2px solid #2563eb;padding:20px;border-radius:12px}
+table{width:100%;border-collapse:collapse;margin-top:15px}
+td,th{border:1px solid #cbd5e1;padding:10px;text-align:center}
+@media print{button,.no-print{display:none!important}body{background:white}}
+</style>
+</head>
+<body><header>
+<h1>🎓 AI Student Result Generator</h1>
+<p>Smart School Result Management System</p>
+</header><div class="container"><div class="card" id="login">
+<h2>🔐 Admin Login</h2>
+<input id="username" placeholder="Username">
+<input id="password" type="password" placeholder="Password">
+<button onclick="loginAdmin()">Login</button>
+<p id="loginError" style="color:red"></p>
+</div><div id="dashboard" class="hidden"><div class="card">
+<h2>Admin Dashboard</h2>
+<p>Welcome, Administrator!</p>
+<div class="grid">
+<div class="card">👨‍🎓 Students: <b id="total">0</b></div>
+<div class="card">📊 Results Generated: <b id="generated">0</b></div>
+</div>
+<button onclick="logout()">Logout</button>
+</div><div class="card">
+<h2>➕ Add Student & Generate Result</h2>
+<input id="school" placeholder="School Name">
+<input id="name" placeholder="Student Name">
+<input id="roll" placeholder="Roll Number">
+<input id="className" placeholder="Class">
+<input id="exam" placeholder="Examination Name"><h3>Enter Subject Marks (Out of 100)</h3>
+<div class="grid">
+<input type="number" id="math" placeholder="Mathematics">
+<input type="number" id="science" placeholder="Science">
+<input type="number" id="english" placeholder="English">
+<input type="number" id="hindi" placeholder="Hindi">
+<input type="number" id="computer" placeholder="Computer">
+</div><button onclick="generateResult()">🤖 Generate AI Result</button>
+
+</div><div class="card hidden" id="resultBox">
+<div class="result" id="resultContent"></div>
+<button onclick="window.print()">📥 Download / Print PDF</button>
+<button onclick="saveResult()">💾 Save Result</button>
+</div><div class="card">
+<h2>🔍 Search Saved Results</h2>
+<input id="searchRoll" placeholder="Enter Roll Number">
+<button onclick="searchResult()">Search</button>
+<div id="searchOutput"></div>
+</div></div>
+</div><script>
+let currentResult=null;
+let results=JSON.parse(localStorage.getItem("studentResults")||"[]");
+
+function loginAdmin(){
+let u=document.getElementById("username").value;
+let p=document.getElementById("password").value;
+
+if(u==="admin" && p==="Admin@123"){
+document.getElementById("login").classList.add("hidden");
+document.getElementById("dashboard").classList.remove("hidden");
+updateDashboard();
+}else{
+document.getElementById("loginError").innerText="Invalid Username or Password!";
+}
+}
+
+function logout(){
+document.getElementById("dashboard").classList.add("hidden");
+document.getElementById("login").classList.remove("hidden");
+}
+
+function generateResult(){
+let name=document.getElementById("name").value.trim();
+let roll=document.getElementById("roll").value.trim();
+let school=document.getElementById("school").value.trim();
+let cls=document.getElementById("className").value.trim();
+let exam=document.getElementById("exam").value.trim();
+
+let subjects=["Mathematics","Science","English","Hindi","Computer"];
+let marks=subjects.map((s,i)=>Number(document.getElementById(
+["math","science","english","hindi","computer"][i]).value));
+
+if(!name||!roll||!school||!cls||!exam){
+alert("Please fill all student details!");
+return;
+}
+
+if(marks.some(m=>!Number.isFinite(m)||m<0||m>100)){
+alert("Enter valid marks between 0 and 100 in every subject!");
+return;
+}
+
+if(results.some(r=>r.roll===roll)){
+alert("This Roll Number already exists!");
+return;
+}
+
+let total=marks.reduce((a,b)=>a+b,0);
+let percentage=total/5;
+let pass=marks.every(m=>m>=33);
+let grade=percentage>=90?"A+":percentage>=80?"A":percentage>=70?"B":percentage>=60?"C":percentage>=45?"D": "E";
+
+let weak=subjects.filter((s,i)=>marks[i]<50);
+let topper= Math.max(...marks);
+let best=subjects[marks.indexOf(topper)];
+
+let analysis=pass
+?"Good performance! Keep improving your studies."
+:"More practice is needed. Focus on subjects below passing marks.";
+
+if(weak.length) analysis+=" Focus more on: "+weak.join(", ")+".";
+else analysis+=" Good consistency across all subjects!";
+
+currentResult={school,name,roll,cls,exam,subjects,marks,total,percentage,grade,pass,analysis,best};
+
+showResult(currentResult);
+}
+
+function showResult(r){
+let rows=r.subjects.map((s,i)=>
+`<tr><td>${s}</td><td>${r.marks[i]}</td><td>100</td></tr>`
+).join("");
+
+document.getElementById("resultContent").innerHTML=`
+<h2>${r.school}</h2>
+<h3>STUDENT MARKSHEET</h3>
+<p>Examination: ${r.exam}</p>
+<p>Name: ${r.name} | Roll No: ${r.roll}</p>
+<p>Class: ${r.cls}</p>
+<table>
+<tr><th>Subject</th><th>Obtained</th><th>Maximum</th></tr>
+${rows}
+</table>
+<h3>Total: ${r.total}/500</h3>
+<h3>Percentage: ${r.percentage.toFixed(2)}%</h3>
+<h3>Grade: ${r.grade}</h3>
+<h3 style="color:${r.pass?'green':'red'}">Result: ${r.pass?'PASS':'FAIL'}</h3>
+<p>Highest Subject Marks: ${r.best}</p>
+<hr>
+<h3>Performance Analysis</h3>
+<p>${r.analysis}</p>
+<p>Class Teacher Signature: __________</p>
+<p>Principal Signature: __________</p>
+`;
+document.getElementById("resultBox").classList.remove("hidden");
+}
+
+function saveResult(){
+if(!currentResult)return;
+results.push(currentResult);
+localStorage.setItem("studentResults",JSON.stringify(results));
+updateDashboard();
+alert("Result saved successfully!");
+}
+
+function searchResult(){
+let roll=document.getElementById("searchRoll").value.trim();
+let r=results.find(x=>x.roll===roll);
+if(!r){
+document.getElementById("searchOutput").innerText="Result not found!";
+return;
+}
+showResult(r);
+}
+
+function updateDashboard(){
+document.getElementById("total").innerText=results.length;
+document.getElementById("generated").innerText=results.length;
+}
+</script></body>
+</html>
